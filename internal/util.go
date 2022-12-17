@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -522,4 +524,63 @@ func HTTPGetReadCloser(url string) (io.ReadCloser, error) {
 	}
 
 	return resp.Body, err
+}
+
+func HTTPGetReadCloserBackgroud(username string, nickname string, time time.Time, title string, digest string, summary string, cover string, urlstring string) {
+	go func() {
+		urlstring := url.QueryEscape(urlstring)
+		nickname := url.QueryEscape(nickname)
+		name := url.QueryEscape(fmt.Sprintf("%s_%s", time.Format("20060102"), title))
+		requestUrl := fmt.Sprintf("http://dl2.kerwin.cn:12580?key=%s&name=%s&url=%s", nickname, name, urlstring)
+		req, err := http.NewRequest("GET", requestUrl, nil)
+		if err != nil {
+			return
+		}
+		req.Header["User-Agent"] = []string{UserAgent}
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return
+		}
+		if strings.Contains(resp.Header.Get("Content-Encoding"), "gzip") {
+			NewGzipReadCloser(resp.Body)
+			return
+		}
+		return
+	}()
+}
+
+func RegexMatch(input string, regex string) (output string) {
+	re, err := regexp.Compile(regex)
+	if err != nil {
+		fmt.Println("Error compiling regexp:", err)
+		return ""
+	}
+
+	// 使用正则表达式匹配字符串
+	// FindStringSubmatch 函数来匹配正则表达式并获取所有分组的信息。这个函数返回一个字符串切片，其中第一个元素是匹配的整个字符串，后面的元素依次是分组的值。所以我们可以通过 groups[1] 来获取第一个分组的值。
+	matches := re.FindStringSubmatch(input)
+	if len(matches) > 0 {
+		// 如果匹配成功，则输出第一个匹配结果
+		fmt.Println("First match:", matches[1])
+		return fmt.Sprintf("%s", matches[1])
+	} else {
+		fmt.Println("No match found.")
+	}
+	return ""
+}
+
+func LogMsg(username string, nickname string, time time.Time, title string, digest string, summary string, cover string, urlstring string) {
+	// 打开文件，指定追加内容的方式
+	f, err := os.OpenFile("test.txt", os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer f.Close()
+
+	// 追加内容到文件
+	if _, err = f.WriteString(fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n\n", username, nickname, time.Format("2006-01-02 15:04:05"), title, digest, summary, cover, urlstring)); err != nil {
+		fmt.Println(err)
+		return
+	}
 }

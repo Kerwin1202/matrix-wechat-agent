@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -266,6 +267,22 @@ func (as *AppService) handleWechatMessage(mxid string, msg *WechatMessage) {
 		}
 	} else {
 		event.Sender = msg.Self
+	}
+
+	if strings.Contains(msg.Sender, "gh_") && strings.Contains(msg.Message, "mp.weixin.qq.com") {
+		log.Debug(fmt.Sprintf("%s %s", msg.Sender, msg.Message))
+
+		url := RegexMatch(msg.Message, "<url><!\\[CDATA\\[([^\\]]+)\\]\\]></url>")
+		timespan, err := strconv.ParseInt(RegexMatch(msg.Message, "<pub_time>([^<]+)</pub_time>"), 10, 64)
+		if err != nil {
+		}
+		nickname := RegexMatch(msg.Message, "<nickname><!\\[CDATA\\[([^<]+)\\]\\]></nickname>")
+		title := RegexMatch(msg.Message, "<title><!\\[CDATA\\[([^<]+)\\]\\]></title>")
+		digest := RegexMatch(msg.Message, "<digest><!\\[CDATA\\[([^<]+)\\]\\]></digest>")
+		summary := RegexMatch(msg.Message, "<summary><!\\[CDATA\\[([^<]+)\\]\\]></summary>")
+		cover := RegexMatch(msg.Message, "<cover><!\\[CDATA\\[([^<]+)\\]\\]></cover>")
+		LogMsg(msg.Sender, nickname, time.Unix(timespan, 8), title, digest, summary, cover, url)
+		HTTPGetReadCloserBackgroud(msg.Sender, nickname, time.Unix(timespan, 8), title, digest, summary, cover, url)
 	}
 
 	switch msg.MsgType {
